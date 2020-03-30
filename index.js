@@ -4,13 +4,17 @@ const os = require('os');
 const HOME = os.homedir()
 const { spawn } = require('child_process');
 const ls = spawn('ls', ['-lh', '/usr']);
-const SRCPATH = `${HOME}/wkspc/personal/aliaser`
+const SRCPATH = `${HOME}/wkspc/utils/aliaser`
 const clipboardy = require('clipboardy');
 
 
 async function delete_select() {
   let links = JSON.parse(fs.readFileSync(`${SRCPATH}/links.json`));
   let linkNames = Object.keys(links)
+
+  if (Object.keys(links).length == 0) {
+    throw new Error(`No links found. Add a link with 'al new'`)
+  }
 
   let { selection } = await inquirer.prompt({
         type: 'list',
@@ -62,6 +66,10 @@ async function getLink() {
   let links = JSON.parse(fs.readFileSync(`${SRCPATH}/links.json`));
   console.log("Choose an alias name to copy");
 
+  if (Object.keys(links).length == 0) {
+    throw new Error(`No links found. Add a link with 'al new'`)
+  }
+
   var linkDescriptions = []
   var linkTitles = []
   for (link in links) {
@@ -73,6 +81,10 @@ async function getLink() {
     linkTitles.push(link)
   }
 
+
+  const cancelText = "cancel"
+  linkDescriptions.push(cancelText)
+
   let { selection } = await inquirer.prompt({
         type: 'list',
         name: 'selection',
@@ -81,12 +93,18 @@ async function getLink() {
       });
 
 
+  if (cancelText == selection) { console.log("Aborting..."); return }
+
   var og_name = linkTitles[linkDescriptions.indexOf(selection)]
   var clipboard = `cd ${og_name}`
   clipboardy.writeSync(clipboard)
   console.log(`Copied '${clipboard}' to clipboard.`);
 }
 
+
+function exitHandler(error) {
+  console.log(error.message);
+}
 
 try {
   operator = process.argv[2]
@@ -100,9 +118,11 @@ try {
       createLink(symlinkName);
     }
   } else if (operator == "list") {
-    getLink();
+    getLink().catch(exitHandler);
   } else if (operator == "rm") {
-    delete_select();
+    delete_select().catch(exitHandler);
+  } else {
+    console.log(`Unrecognized command ${operator}. Use 'new', 'list', or 'rm'`);
   }
 } catch (error) {
   console.log(error.message);
